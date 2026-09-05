@@ -22,11 +22,16 @@ class KNNClassifier:
         self.distance_metric = distance_metric
 
     def _is_y_train_type_valid(self, y_train: np.ndarray) -> bool:
-        is_bool = bool(np.issubdtype(y_train.dtype, np.bool_))
-        is_integer_type = bool(np.issubdtype(y_train.dtype, np.integer))
-        is_equal_or_greater_than_zero = is_integer_type and bool(np.min(y_train) >= 0)
 
-        return is_bool or is_equal_or_greater_than_zero
+        # Checa se é booleano
+        if np.issubdtype(y_train.dtype, np.bool_):
+            return True
+
+        # Checa se é inteiro e se o menor valor é >= 0
+        if np.issubdtype(y_train.dtype, np.integer):
+            return bool(np.min(y_train) >= 0)
+
+        return False
 
     def fit(
         self,
@@ -45,13 +50,16 @@ class KNNClassifier:
                 'O valor de k não pode ser maior que o número de amostras no treino!'
             )
 
-        if np.min(x_train) < 0.0:
+        min_x_train_val = np.min(x_train)
+        if min_x_train_val < 0.0  and not np.isclose(min_x_train_val, 0.0):
+            print (f'Foi encontrado o valor {min_x_train_val}')
             raise ValueError(
                 'Todos os valores de x_train devem estar normalizados maior 0.0!'
             )
 
-        if np.max(x_train) > 1.0:
-            print (f'Foi encontrado o valor {np.max(x_train)}')
+        max_x_train_val = np.max(x_train)
+        if  max_x_train_val > 1.0 and not np.isclose(max_x_train_val, 1.0):
+            print (f'Foi encontrado o valor {max_x_train_val}')
             raise ValueError(
                 'Todos os valores de x_train devem estar normalizados menor 1.0!'
             )
