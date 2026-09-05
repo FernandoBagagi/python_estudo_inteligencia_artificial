@@ -46,7 +46,7 @@ print(X_train.head(5).T)
 
 # Construção do modelo
 
-knn = KNNClassifier(k=3)
+knn = KNNClassifier(k=3, distance_metric=DistanceMetric.MANHATTAN)
 
 # Treinamento
 
