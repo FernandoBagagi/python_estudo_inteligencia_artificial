@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from classifiers.knn_classifier import DistanceMetric, KNNClassifier
+from estudo.classifiers.knn_classifier import DistanceMetric, KNNClassifier
 
 # ==============================================================================
 # Fixtures
