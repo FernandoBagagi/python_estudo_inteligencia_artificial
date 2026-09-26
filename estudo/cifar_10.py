@@ -1,14 +1,28 @@
 import keras
 import matplotlib.pyplot as plt
 import numpy as np
-from keras.callbacks import EarlyStopping
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from keras.datasets import cifar10
-from keras.layers import Dense, Dropout, Input
+from keras.layers import (
+    BatchNormalization,
+    Conv2D,
+    Dense,
+    Dropout,
+    Flatten,
+    Input,
+    MaxPooling2D,
+    RandomFlip,
+    RandomRotation,
+    RandomTranslation,
+)
 from keras.models import Sequential
-from keras.optimizers import RMSprop
+from keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+
+# Garante resultados reproduzíveis (dentro dos limites do hardware utilizado).
+keras.utils.set_random_seed(42)
 
 print('Shape data: ', x_train[217].shape)
 
@@ -18,8 +32,6 @@ print('y_train[217]:', y_train[217])
 
 print('Shape train samples: ', x_train.shape)
 print('Shape test samples: ', x_test.shape)
-x_train = x_train.reshape(len(x_train), 32 * 32 * 3)
-x_test = x_test.reshape(len(x_test), 32 * 32 * 3)
 
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
@@ -37,11 +49,29 @@ print('y_train[217]', y_train[217])
 
 model = Sequential(
     [
-        Input(shape=(32 * 32 * 3,)),
-        Dense(400, activation='relu'),
-        Dropout(0.4),
-        Dense(300, activation='relu'),
-        Dropout(0.4),
+        Input(shape=(32, 32, 3)),
+        # Aumento de dados: aplicado somente durante o treinamento.
+        RandomFlip('horizontal'),
+        RandomTranslation(height_factor=0.1, width_factor=0.1),
+        RandomRotation(0.1),
+        # Primeiro bloco convolucional: aprende bordas, cores e texturas simples.
+        Conv2D(32, (3, 3), padding='same', activation='relu'),
+        BatchNormalization(),
+        Conv2D(32, (3, 3), padding='same', activation='relu'),
+        BatchNormalization(),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(0.25),
+        # Segundo bloco: combina as características simples em padrões mais complexos.
+        Conv2D(64, (3, 3), padding='same', activation='relu'),
+        BatchNormalization(),
+        Conv2D(64, (3, 3), padding='same', activation='relu'),
+        BatchNormalization(),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(0.25),
+        Flatten(),
+        Dense(512, activation='relu'),
+        BatchNormalization(),
+        Dropout(0.5),
         Dense(10, activation='softmax'),
     ]
 )
@@ -50,15 +80,23 @@ model.summary()
 
 model.compile(
     loss='categorical_crossentropy',
-    optimizer=RMSprop(learning_rate=0.001),
+    optimizer=Adam(learning_rate=0.001),
     metrics=['accuracy'],
 )
 
 early_stopping = EarlyStopping(
     monitor='val_loss',
-    patience=5,
+    patience=8,
     verbose=1,
     restore_best_weights=True,
+)
+
+reduce_learning_rate = ReduceLROnPlateau(
+    monitor='val_loss',
+    factor=0.5,
+    patience=3,
+    min_lr=1e-5,
+    verbose=1,
 )
 
 # Converte y_train para um array NumPy garantido
@@ -78,10 +116,10 @@ history = model.fit(
     x_train_sub,
     y_train_sub,
     batch_size=128,
-    epochs=20,
+    epochs=50,
     verbose='1',
     validation_data=(x_val, y_val),
-    callbacks=[early_stopping],
+    callbacks=[early_stopping, reduce_learning_rate],
 )
 
 score = model.evaluate(x_test, y_test, verbose='0')
